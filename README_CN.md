@@ -95,7 +95,7 @@ GFPGAN 致力于开发一个**面向真实场景的人脸修复实用算法**。
     pip install realesrgan
     ```
 
-## :zap: 快速推理
+## :zap: 快速使用
 
 我们以 v1.3 版本为例。更多模型请见 [模型列表](#european_castle-model-zoo)。
 
@@ -105,8 +105,101 @@ GFPGAN 致力于开发一个**面向真实场景的人脸修复实用算法**。
 wget https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.3.pth -P experiments/pretrained_models
 ```
 
-## 运行推理
+**运行推理**
 
 ```bash
 python inference_gfpgan.py -i inputs/whole_imgs -o results -v 1.3 -s 2
 ```
+```console
+使用方法: python inference_gfpgan.py -i inputs/whole_imgs -o results -v 1.3 -s 2 [可选项]...
+
+  -h                   显示帮助信息
+  -i input             输入图像或文件夹。默认：inputs/whole_imgs
+  -o output            输出文件夹。默认：results
+  -v version           GFPGAN 模型版本。选项：1 | 1.2 | 1.3。默认：1.3
+  -s upscale           图像最终上采样倍数。默认：2
+  -bg_upsampler        背景增强器。默认：realesrgan
+  -bg_tile             背景增强时的 tile 大小，0 表示不分块测试。默认：400
+  -suffix              修复人脸的文件名后缀
+  -only_center_face    仅修复中心人脸
+  -aligned             输入图像是否为已对齐人脸
+  -ext                 图像扩展名。选项：auto | jpg | png；auto 表示与输入相同。默认：auto
+```
+若需使用论文原始模型，请参考 [PaperModel.md](PaperModel.md) 了解安装与使用方法。
+
+## :european_castle: 模型列表（Model Zoo）
+| 版本 | 模型名称 | 模型说明 |
+| :---: | :--- | :--- |
+| V1.3 | [GFPGANv1.3.pth](https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.3.pth) | 基于 V1.2；恢复效果更自然；在极低质量与高质量图像中表现更佳。 |
+| V1.2 | [GFPGANCleanv1-NoCE-C2.pth](https://github.com/TencentARC/GFPGAN/releases/download/v0.2.0/GFPGANCleanv1-NoCE-C2.pth) | 无人脸上色；无需 CUDA 扩展；使用更多预处理数据训练。 |
+| V1   | [GFPGANv1.pth](https://github.com/TencentARC/GFPGAN/releases/download/v0.1.0/GFPGANv1.pth) | 论文中使用的模型，包含上色模块。 |
+
+模型对比效果请参考[Comparisons.md](Comparisons.md)
+
+请注意，V1.3 不一定始终优于 V1.2，建议根据图像情况自行选择。
+
+| 版本 | 优点 | 缺点 |
+| :---: | :---: | :---: |
+| V1.3 | ✓ 输出更加自然 <br> ✓ 对极低质量输入效果更好 <br> ✓ 对较高质量输入也有效 <br> ✓ 支持重复修复（两次） | ✗ 图像不够锐利 <br> ✗ 身份可能发生轻微变化 |
+| V1.2 | ✓ 输出更锐利 <br> ✓ 带有美颜化妆效果 | ✗ 某些输出看起来不自然 |
+
+你可以在以下位置找到**更多模型（如判别器discriminators）**：  
+[[Google Drive](https://drive.google.com/drive/folders/17rLiFzcUMoQuhLnptDsKolegHWwJOnHu?usp=sharing)]，或 [[腾讯微云](https://share.weiyun.com/ShYoCCoc)]
+
+---
+
+## :computer: 训练
+
+我们提供了用于 GFPGAN 的训练代码（与论文中使用一致）。<br>你可以根据自己的需求对其进行改进。
+
+**小贴士：**
+
+1. 更多高质量人脸样本有助于提升修复效果；
+2. 你可能需要进行一些预处理，如美颜化妆等。
+
+**训练流程：**
+
+（你可以尝试一个简化版本：`options/train_gfpgan_v1_simple.yml`，该版本不需要人脸部件关键点）
+
+1. 准备数据集：[FFHQ](https://github.com/NVlabs/ffhq-dataset)
+
+2. 下载预训练模型和其他依赖数据，并放入 `experiments/pretrained_models` 文件夹：
+    - [StyleGAN2 预训练模型：StyleGAN2_512_Cmul1_FFHQ_B12G4_scratch_800k.pth](https://github.com/TencentARC/GFPGAN/releases/download/v0.1.0/StyleGAN2_512_Cmul1_FFHQ_B12G4_scratch_800k.pth)
+    - [FFHQ 的眼睛和嘴巴关键点位置信息：FFHQ_eye_mouth_landmarks_512.pth](https://github.com/TencentARC/GFPGAN/releases/download/v0.1.0/FFHQ_eye_mouth_landmarks_512.pth)
+    - [简化版 ArcFace 模型：arcface_resnet18.pth](https://github.com/TencentARC/GFPGAN/releases/download/v0.1.0/arcface_resnet18.pth)
+
+3. 根据需要修改配置文件 `options/train_gfpgan_v1.yml`
+
+4. 开始训练：
+
+```bash
+python -m torch.distributed.launch --nproc_per_node=4 --master_port=22021 gfpgan/train.py -opt options/train_gfpgan_v1.yml --launcher pytorch
+```
+
+---
+
+## :scroll: 许可证与致谢
+
+GFPGAN 遵循 Apache License 2.0 开源协议。
+
+---
+
+## BibTeX 引用格式
+
+```bibtex
+@InProceedings{wang2021gfpgan,
+    author = {Xintao Wang and Yu Li and Honglun Zhang and Ying Shan},
+    title = {Towards Real-World Blind Face Restoration with Generative Facial Prior},
+    booktitle={The IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+    year = {2021}
+}
+```
+
+---
+
+## :e-mail: 联系方式
+
+如有任何问题，请通过以下邮箱联系：
+
+- `xintao.wang@outlook.com`
+- `xintaowang@tencent.com`
